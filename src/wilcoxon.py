@@ -58,7 +58,8 @@ def gen_wilcoxon_data(wilcoxon_attribute, target_groups, alternative, p_correcti
         return pd.DataFrame()
 
     wilcoxon_df = pd.concat(wilcoxon_results).set_index("metabolite")
-    wilcoxon_df = wilcoxon_df.dropna(subset=["p-val"])
+    if 'p-val' in wilcoxon_df.columns:
+        wilcoxon_df = wilcoxon_df.dropna(subset=["p-val"])
     st.session_state.wilcoxon_returned_metabolites = len(wilcoxon_df)
 
     wilcoxon_df.insert(4, "p-corrected", pg.multicomp(wilcoxon_df["p-val"].astype(float), method=p_correction)[1])

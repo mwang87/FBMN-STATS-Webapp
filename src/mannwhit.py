@@ -44,7 +44,8 @@ def gen_mwu_data(mwu_attribute, target_groups, alternative, p_correction, _progr
         return pd.DataFrame()
 
     mwu = pd.concat(mwu_results).set_index("metabolite")
-    mwu = mwu.dropna(subset=["p-val"])
+    if 'p-val' in mwu.columns:
+        mwu = mwu.dropna(subset=["p-val"])
     st.session_state.mwu_returned_metabolites = len(mwu)
     mwu.insert(4, "p-corrected", pg.multicomp(mwu["p-val"].astype(float), method=p_correction)[1])
     mwu.insert(5, "significance", mwu["p-corrected"] < 0.05)

@@ -70,7 +70,8 @@ def gen_ttest_data(ttest_attribute, target_groups, paired, alternative, correcti
         return pd.DataFrame()
 
     ttest = pd.concat(ttest).set_index("metabolite")
-    ttest = ttest.dropna(subset=['p-val']) # Only drop if p-val is NaN
+    if 'p-val' in ttest.columns:
+        ttest = ttest.dropna(subset=['p-val']) # Only drop if p-val is NaN
     st.session_state.ttest_returned_metabolites = len(ttest)
 
     ttest.insert(8, "p-corrected", pg.multicomp(ttest["p-val"].astype(float), method=p_correction)[1])
