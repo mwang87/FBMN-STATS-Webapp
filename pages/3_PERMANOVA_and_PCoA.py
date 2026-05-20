@@ -184,10 +184,21 @@ try:
         # st.markdown(f"**Selected categories in '{att_col}':** {', '.join(map(str, selected_categories))}")
         # st.dataframe(filtered_md[[att_col]], use_container_width=True)
         
-        if filtered_md[st.session_state.pcoa_attribute].value_counts().min() < 2:
-            st.warning("⚠️ Each category must have at least 2 samples. Please adjust your filters to include more samples.")
+        n_unique = filtered_md[att_col].nunique()
+        min_per_cat = filtered_md[st.session_state.pcoa_attribute].value_counts().min() if n_unique > 0 else 0
+        total_samples = len(filtered_md)
+
+        if total_samples < 2:
+            st.warning("⚠️ At least 2 samples are required to compute PCoA. Please adjust your filters.")
         else:
-            can_permanova = filtered_md[att_col].nunique() >= 2
+            can_permanova = n_unique >= 2 and min_per_cat >= 2
+
+            if not can_permanova:
+                if n_unique < 2:
+                    st.warning("⚠️ PERMANOVA requires at least 2 categories — showing PCoA only.")
+                elif min_per_cat < 2:
+                    st.warning("⚠️ PERMANOVA requires at least 2 samples per category — showing PCoA only.")
+
             if can_permanova:
                 permanova, pcoa_result = permanova_pcoa(
                     filtered_data,
