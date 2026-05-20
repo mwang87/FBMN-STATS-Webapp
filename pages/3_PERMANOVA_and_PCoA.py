@@ -98,9 +98,15 @@ try:
         if is_dirty:
             st.warning("⚠️ Unsaved changes — click Done to apply.")
         elif st.session_state.get("pcoa_filter_applied", False):
-            n_cats = len(committed_cats)
             n_samps = len(committed_samps)
-            st.success(f"✅ Filters applied! Showing {n_samps} sample(s) across {n_cats} categor{'y' if n_cats == 1 else 'ies'}.")
+            cat_counts = md_all[md_all.index.isin(committed_samps)][attribute_col].value_counts()
+            n_cats = len(cat_counts)
+            if n_samps < 2:
+                st.warning(f"⚠️ PCoA cannot be performed with fewer than 2 samples. Please adjust your filters to include more samples (currently {n_samps}).")
+            elif cat_counts.min() < 2:
+                st.warning("⚠️ Each category must have at least 2 samples. Please adjust your filters to include more samples.")
+            else:
+                st.success(f"✅ Filters applied! Showing {n_samps} sample(s) across {n_cats} categor{'y' if n_cats == 1 else 'ies'}.")
 
     page_setup()
     st.session_state["current_page"] = "PERMANOVA & PCoA"
@@ -178,18 +184,22 @@ try:
         # st.markdown(f"**Selected categories in '{att_col}':** {', '.join(map(str, selected_categories))}")
         # st.dataframe(filtered_md[[att_col]], use_container_width=True)
         
-        if len(committed_categories) < 2:
-            st.warning("⚠️ PERMANOVA cannot be calculated for this group because there is only one category in the selected attribute. You need at least two categories to perform statistical testing.")
-        elif filtered_md[st.session_state.pcoa_attribute].nunique() < 2:
-            st.warning("⚠️ PERMANOVA cannot be calculated for this group because there is only one category in the selected attribute. You need at least two categories to perform statistical testing.")
-        elif filtered_md[st.session_state.pcoa_attribute].value_counts().min() < 2:
+        if filtered_md[st.session_state.pcoa_attribute].value_counts().min() < 2:
             st.warning("⚠️ Each category must have at least 2 samples. Please adjust your filters to include more samples.")
         else:
-            permanova, pcoa_result = permanova_pcoa(
-                filtered_data,
-                st.session_state.pcoa_distance_matrix,
-                filtered_md[st.session_state.pcoa_attribute],
-            )
+            can_permanova = filtered_md[att_col].nunique() >= 2
+            if can_permanova:
+                permanova, pcoa_result = permanova_pcoa(
+                    filtered_data,
+                    st.session_state.pcoa_distance_matrix,
+                    filtered_md[st.session_state.pcoa_attribute],
+                )
+            else:
+                permanova = None
+                pcoa_result = compute_pcoa_only(
+                    filtered_data,
+                    st.session_state.pcoa_distance_matrix,
+                )
 
             # Dynamically determine available PCs from pcoa_result.samples columns
             available_pcs = [col for col in pcoa_result.samples.columns if col.startswith("PC")]
@@ -213,14 +223,20 @@ try:
                 if pcoa_x_axis == pcoa_y_axis:
                     st.warning("⚠️ X-axis and Y-axis cannot be the same. Please choose different axes to view results.")
                 else:
-                    if not permanova.empty:
-                        t1, t2, t3, t4 = st.tabs(["📁 PERMANOVA statistics", "📈 Principal Coordinate Analysis", "📊 Explained variance", "📁 Data"])
-                        with t1:
-                            show_table(permanova, "PERMANOVA-statistics", hide_index=True)
-                        with t2:
-                            shape_map = st.session_state.get("pcoa_committed_shapes", {})
-                            if not shape_map:
-                                shape_map = {str(cat): "circle" for cat in committed_categories}
+                    shape_map = st.session_state.get("pcoa_committed_shapes", {})
+                    if not shape_map:
+                        shape_map = {str(cat): "circle" for cat in committed_categories}
+
+                    def _render_pcoa_tabs(include_permanova):
+                        if include_permanova:
+                            t1, t2, t3, t4 = st.tabs(["📁 PERMANOVA statistics", "📈 Principal Coordinate Analysis", "📊 Explained variance", "📁 Data"])
+                            with t1:
+                                show_table(permanova, "PERMANOVA-statistics", hide_index=True)
+                            pcoa_tab, var_tab, data_tab = t2, t3, t4
+                        else:
+                            pcoa_tab, var_tab, data_tab = st.tabs(["📈 Principal Coordinate Analysis", "📊 Explained variance", "📁 Data"])
+
+                        with pcoa_tab:
                             fig = get_pcoa_scatter_plot(
                                 pcoa_result,
                                 st.session_state.md.loc[filtered_md.index],
@@ -232,13 +248,15 @@ try:
                             )
                             show_fig(fig, "principal-coordinate-analysis")
                             st.session_state["page_figs_pcoa_scatter"] = fig
-                        with t3:
+                        with var_tab:
                             fig = get_pcoa_variance_plot(pcoa_result)
                             show_fig(fig, "pcoa-variance")
                             st.session_state["page_figs_pcoa_variance"] = fig
-                        with t4:
+                        with data_tab:
                             filtered_samples = pcoa_result.samples.loc[filtered_md.index]
                             show_table(filtered_samples.iloc[:, :10], "principal-coordinates")
+
+                    _render_pcoa_tabs(can_permanova and permanova is not None and not permanova.empty)
 
     else:
         st.warning("⚠️ Please complete data preparation step first!")

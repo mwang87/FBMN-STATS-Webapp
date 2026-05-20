@@ -58,8 +58,8 @@ def gen_wilcoxon_data(wilcoxon_attribute, target_groups, alternative, p_correcti
         return pd.DataFrame()
 
     wilcoxon_df = pd.concat(wilcoxon_results).set_index("metabolite")
-    if 'p-val' in wilcoxon_df.columns:
-        wilcoxon_df = wilcoxon_df.dropna(subset=["p-val"])
+    if 'p_val' in wilcoxon_df.columns:
+        wilcoxon_df = wilcoxon_df.dropna(subset=["p_val"])
     st.session_state.wilcoxon_returned_metabolites = len(wilcoxon_df)
 
     wilcoxon_df.insert(4, "p-corrected", pg.multicomp(wilcoxon_df["p-val"].astype(float), method=p_correction)[1])
@@ -74,7 +74,7 @@ def gen_wilcoxon_data(wilcoxon_attribute, target_groups, alternative, p_correcti
 
 def _clean_wilcoxon_dataframe(df):
     df = df.copy()
-    numeric_cols = ["W-val", "p-val", "p-corrected", "RBC", "CLES", "median(A)", "median(B)"]
+    numeric_cols = ["W_val", "p_val", "p-corrected", "RBC", "CLES", "median(A)", "median(B)"]
     for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")

@@ -6,6 +6,14 @@ import skbio
 from scipy.spatial import distance
 
 @st.cache_data
+def compute_pcoa_only(scaled, distance_metric):
+    distance_matrix = skbio.stats.distance.DistanceMatrix(
+        distance.squareform(distance.pdist(scaled.values, distance_metric)),
+        ids=scaled.index,
+    )
+    return skbio.stats.ordination.pcoa(distance_matrix)
+
+@st.cache_data
 def permanova_pcoa(scaled, distance_metric, attribute):
     
     # Create the distance matrix from the original data
