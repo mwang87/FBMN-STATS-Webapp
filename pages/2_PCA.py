@@ -101,9 +101,12 @@ def advanced_filtering(attribute_col, all_categories, md_all):
     if is_dirty:
         st.warning("⚠️ Unsaved changes - click Done to apply.")
     elif st.session_state.get("pca_filter_applied", False):
-        n_cats = len(committed_cats)
         n_samps = len(committed_samps)
-        st.success(f"✅ Filters applied! Showing {n_samps} sample(s) across {n_cats} categor{'y' if n_cats == 1 else 'ies'}.")
+        n_cats = md_all[md_all.index.isin(committed_samps)][attribute_col].nunique()
+        if n_samps < 2:
+            st.warning(f"⚠️ PCA cannot be performed with fewer than 2 samples. Please adjust your filters to include more samples (currently {n_samps}).")
+        else:
+            st.success(f"✅ Filters applied! Showing {n_samps} sample(s) across {n_cats} categor{'y' if n_cats == 1 else 'ies'}.")
 
 st.markdown("# Principal Component Analysis (PCA)")
 
@@ -157,8 +160,8 @@ if st.session_state.data is not None and not st.session_state.data.empty:
     ]
     data_filtered = st.session_state.data.loc[md_filtered.index]
 
-    if data_filtered.shape[0] <= 2:
-        st.warning("⚠️ PCA cannot be performed with fewer than 3 samples. Please adjust your filters to include more samples.")
+    if data_filtered.shape[0] < 2:
+        st.warning("⚠️ PCA cannot be performed with fewer than 2 samples. Please adjust your filters to include more samples.")
     
     else:
         # Ensure n_components is valid after filtering
